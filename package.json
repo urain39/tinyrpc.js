@@ -1,0 +1,30 @@
+{
+  "name": "saw-rpc",
+  "version": "1.0.0",
+  "description": "SAW Aria2 WebUI's RPC Protocol Component",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/urain39/saw-rpc.git"
+  },
+  "keywords": [
+    "aria2",
+    "aria2-rpc",
+    "rpc",
+    "saw",
+    "saw-rpc",
+    "saw-webui"
+  ],
+  "author": "urain39",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/urain39/saw-rpc/issues"
+  },
+  "homepage": "https://github.com/urain39/saw-rpc#readme"
+}
