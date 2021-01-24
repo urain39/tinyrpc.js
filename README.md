@@ -7,7 +7,7 @@
 ```ts
 import { JSONRPC } from 'tinyrpc';
 
-JSONRPC('ws://localhost:9500/jsonrpc')
+new JSONRPC('ws://localhost:9500/jsonrpc')
     .onOpen(function (event) {
         console.log('成功：' + event.data);
     })
@@ -35,5 +35,5 @@ for (let i = 0; i < 100; i++) {
 }
 ```
 
-除此以外 Tiny RPC 中可以限制同一时间内最大的请求数量，你可以修改属性`JSONRPC.MAX_REQUEST_COUNT`
-来实现。默认我将其设置为`8`个。
+除此以外 Tiny RPC 中会限制同一时间内最大的请求数量，默认我将其设置为`8`个，
+如有需要，可以自行编译修改。

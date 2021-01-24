@@ -4,20 +4,22 @@ export class JSONRPC {
     public rpcPath: string;
     public loaded: boolean;
     public requestCount: number;
-    public notifyCallback!: JSONRPCCallback;
+    public notifyCallback?: JSONRPCCallback;
     private _ws: WebSocket;
+    private _requestId: number;
     private _callbacks: IMap<JSONRPCCallback>;
 
     /**
-     * 为了保证性能，我们限制了最大同时请求的数量。
+     * 最大请求数量。
      */
-    public static MAX_REQUEST_COUNT = 8;
+    public static MAX_REQUEST_COUNT = 16;
 
     public constructor(rpcPath: string) {
         this.rpcPath = rpcPath;
         this.loaded = false;
         this.requestCount = 0;
         this._ws = new WebSocket(this.rpcPath);
+        this._requestId = 0;
         this._callbacks = {};
 
         /**
@@ -34,14 +36,20 @@ export class JSONRPC {
         this._ws.addEventListener('message', function (event: MessageEvent) {
             const data = JSON.parse(event.data);
             const id = data.id;
-            const callback = _this._callbacks[id];
+            const callbacks = _this._callbacks
+            const callback = callbacks[id];
 
             if (callback) {
                 callback(data);
+                delete callbacks[id];
+
                 _this.requestCount--;
             } else {
                 // vvv JSON RPC 规定，没有 id 的响应应该视作是通知。
-                _this.notifyCallback(data);
+                const notifyCallback = _this.notifyCallback;
+
+                if (notifyCallback)
+                    notifyCallback(data);
             }
         });
     }
@@ -110,8 +118,10 @@ export class JSONRPC {
             return this;
         }
 
-        if (!requestId)
-            requestId = `${new Date().getTime()}_${this.requestCount++}`;
+        if (!requestId) {
+            requestId = this._requestId++;
+            this.requestCount++;
+        }
 
         // 等待连接。
         if (!this.loaded) {
