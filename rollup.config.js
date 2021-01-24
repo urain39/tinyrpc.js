@@ -3,6 +3,6 @@ export default {
     output: {
         file: 'dist/jsonrpc.bundle.js',
         format: 'umd',
-        name: 'JSONRPC'
+        name: 'TINYRPC'
     }
 };

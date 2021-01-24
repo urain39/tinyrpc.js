@@ -1,4 +1,4 @@
-import { IMap, JSONRPCCallback, sleep } from "./common";
+import { IMap, JSONRPCCallback } from "./common";
 
 export class JSONRPC {
     public rpcPath: string;
@@ -26,10 +26,17 @@ export class JSONRPC {
     public open(): this {
         this._ws = new WebSocket(this.rpcPath);
 
+        /**
+         * 标记连接状态。
+         */
         const _this = this;
         this._ws.addEventListener('open', function () {
             _this.loaded = true;
         });
+
+        /**
+         * 处理响应数据。
+         */
         this._ws.addEventListener('message', function (event: MessageEvent) {
             const data = JSON.parse(event.data);
             const id = data.id;
@@ -39,6 +46,7 @@ export class JSONRPC {
                 callback(data);
                 _this.requestCount--;
             } else {
+                // vvv JSON RPC 规定，没有 id 的响应应该视作是通知。
                 _this.notifyCallback(data);
             }
         });
@@ -49,7 +57,6 @@ export class JSONRPC {
     /**
      * 使用该方法注册消息通知函数。
      * @param notifyCallback 消息通知函数
-     * @returns {JSONRPC} this
      */
     public onNotify(notifyCallback: JSONRPCCallback): this {
         this.notifyCallback = notifyCallback;
@@ -63,33 +70,44 @@ export class JSONRPC {
      * @param params 参数列表，可为空
      * @param callback 接收到数据后的处理函数
      */
-    public async request(method: string, params: any, callback: JSONRPCCallback): Promise<void> {
+    public request(method: string, params: any, callback: JSONRPCCallback): this {
+        return this._request(method, params, callback);
+    }
+
+    /**
+     * `request`方法的底层实现。与`request`方法最大的区别在于其带有一个附加
+     * 的参数`requestId`，用于表示这个操作是之前触发的，但是被推迟到现在执行了。
+     */
+    private _request(method: string, params: any, callback: JSONRPCCallback, requestId?: number | string): this {
         // 如果超过额定值，则忽略请求。
-        if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT) {
-            return;
+        if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId) {
+            return this;
         }
 
-        /**
-         * 注意：我们必须在真正异步执行（await）前增加计数，不然的话以
-         * JS 的执行顺序，它会将多个请求都加进 事件队列 里，那样就不是
-         * 我们想要的实现的效果了。
-         */
-        const id = `${new Date().getTime()}_${this.requestCount++}`;
+        if (!requestId)
+            requestId = `${new Date().getTime()}_${this.requestCount++}`;
 
         // 等待连接。
-        while (!this.loaded) {
-            await sleep(1000);
+        if (!this.loaded) {
+            const _this = this;
+            setTimeout(function () {
+                _this._request(method, params, callback, requestId = requestId);
+            }, 1000);
+
+            return this;
         }
 
         // 发送请求。
         this._ws.send(JSON.stringify({
             jsonrpc: '2.0',
-            id,
+            id: requestId,
             method,
             params
         }));
 
         // 注册回调。
-        this._callbacks[id] = callback;
+        this._callbacks[requestId] = callback;
+
+        return this;
     }
 }

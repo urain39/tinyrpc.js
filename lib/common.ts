@@ -4,9 +4,3 @@ export interface IMap<V> {
 }
 
 export type JSONRPCCallback = (data: any) => any;
-
-export function sleep(ms: number): Promise<void> {
-    return new Promise<void>((resolve: () => void) => {
-        setTimeout(() => resolve(), ms);
-    });
-}

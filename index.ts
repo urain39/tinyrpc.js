@@ -1,2 +1,1 @@
-export * from './lib/common';
-export * from './lib/jsonrpc';
+export { JSONRPC } from './lib/jsonrpc';
