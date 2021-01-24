@@ -79,7 +79,7 @@ export class JSONRPC {
      * 的参数`requestId`，用于表示这个操作是之前触发的，但是被推迟到现在执行了。
      */
     private _request(method: string, params: any, callback: JSONRPCCallback, requestId?: number | string): this {
-        // 如果超过额定值，则忽略请求。
+        // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）的请求。
         if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId) {
             return this;
         }
