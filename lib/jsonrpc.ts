@@ -5,7 +5,7 @@ export class JSONRPC {
     public loaded: boolean;
     public requestCount: number;
     public notifyCallback!: JSONRPCCallback;
-    private _ws!: WebSocket;
+    private _ws: WebSocket;
     private _callbacks: IMap<JSONRPCCallback>;
 
     /**
@@ -17,14 +17,8 @@ export class JSONRPC {
         this.rpcPath = rpcPath;
         this.loaded = false;
         this.requestCount = 0;
-        this._callbacks = {};
-    }
-
-    /**
-     * 开启JSON RPC连接。
-     */
-    public open(): this {
         this._ws = new WebSocket(this.rpcPath);
+        this._callbacks = {};
 
         /**
          * 标记连接状态。
@@ -50,8 +44,6 @@ export class JSONRPC {
                 _this.notifyCallback(data);
             }
         });
-
-        return this;
     }
 
     /**
