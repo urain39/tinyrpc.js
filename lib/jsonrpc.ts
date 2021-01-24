@@ -55,6 +55,40 @@ export class JSONRPC {
     }
 
     /**
+     * 用于监听开启事件。
+     * @param listener 开启事件监听器
+     */
+    public onOpen(listener: typeof WebSocket.prototype.onopen): this {
+        if (listener)
+            this._ws.addEventListener('open', listener);
+
+        return this;
+    }
+
+
+    /**
+     * 用于监听错误事件。
+     * @param listener 错误事件监听器
+     */
+    public onError(listener: typeof WebSocket.prototype.onerror): this {
+        if (listener)
+            this._ws.addEventListener('error', listener);
+
+        return this;
+    }
+
+    /**
+     * 用于监听关闭事件。
+     * @param listener 关闭事件监听器
+     */
+    public onClose(listener: typeof WebSocket.prototype.onclose): this {
+        if (listener)
+            this._ws.addEventListener('close', listener);
+
+        return this;
+    }
+
+    /**
      * 使用该方法注册消息通知函数。
      * @param notifyCallback 消息通知函数
      */
