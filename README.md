@@ -5,7 +5,6 @@
 使用方法：
 
 ```ts
-const WebSocket = require('websocket').w3cwebsocket;
 const { JSONRPC } = require('./dist/jsonrpc.bundle.js');
 
 
