@@ -7,7 +7,7 @@
 ```ts
 import { JSONRPC } from 'tinyrpc';
 
-const rpc = JSONRPC('ws://localhost:9500/jsonrpc');
+const rpc = new JSONRPC('ws://localhost:9500/jsonrpc');
 
 rpc
     .onOpen(function (event) {
