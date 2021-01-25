@@ -104,31 +104,34 @@ export class JSONRPC {
      * @param method RPC 方法名称
      * @param params 参数列表，可为空
      * @param callback 接收到数据后的处理函数
+     * @param force 强制请求，该请求一定会被发送
      */
-    public request(method: string, params: any, callback: JSONRPCCallback): this {
-        return this._request(method, params, callback);
+    public request(method: string, params: any, callback: JSONRPCCallback, force: boolean = false): this {
+        return this._request(method, params, callback, force);
     }
 
     /**
      * `request`方法的底层实现。与`request`方法最大的区别在于其带有一个附加
      * 的参数`requestId`，用于表示这个操作是之前触发的，但是被推迟到现在执行了。
      */
-    private _request(method: string, params: any, callback: JSONRPCCallback, requestId?: number | string): this {
-        // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）的请求。
-        if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId) {
+    private _request(method: string, params: any, callback: JSONRPCCallback, force: boolean, requestId?: number | string): this {
+        // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）和强制的请求。
+        if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId && !force) {
             return this;
         }
 
-        if (!requestId) {
+        if (requestId === void 0) {
             requestId = this._requestId++;
-            this.requestCount++;
+            // 强制请求应该不影响普通请求。
+            if (!force)
+                this.requestCount++;
         }
 
         // 等待连接。
         if (!this.loaded) {
             const _this = this;
             setTimeout(function () {
-                _this._request(method, params, callback, requestId);
+                _this._request(method, params, callback, force, requestId);
             }, 1000);
 
             return this;
