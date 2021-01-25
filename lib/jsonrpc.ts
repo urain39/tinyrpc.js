@@ -1,9 +1,15 @@
 import { IMap, JSONRPCCallback } from "./common";
 
+
+// 修复`undefined`可赋值问题。
+const UNDEFINED = void 22;
+
+
 export class JSONRPC {
     public rpcPath: string;
     public loaded: boolean;
     public requestCount: number;
+    public rejectCallback?: JSONRPCCallback;
     public notifyCallback?: JSONRPCCallback;
     private _ws: WebSocket;
     private _requestId: number;
@@ -89,6 +95,12 @@ export class JSONRPC {
         return this;
     }
 
+    public onReject(rejectCallback: JSONRPCCallback): this {
+        this.rejectCallback = rejectCallback;
+
+        return this;
+    }
+
     /**
      * 使用该方法注册消息通知函数。
      * @param notifyCallback 消息通知函数
@@ -117,13 +129,19 @@ export class JSONRPC {
     private _request(method: string, params: any, callback: JSONRPCCallback, force: boolean, requestId?: number | string): this {
         // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）和强制的请求。
         if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId && !force) {
+            const rejectCallback = this.rejectCallback;
+
+            if (rejectCallback)
+                rejectCallback(new Error('Maximum concurrent request count'));
+
             return this;
         }
 
-        if (requestId === void 0) {
+        if (requestId === UNDEFINED) {
             requestId = this._requestId++;
-            // 强制请求应该不影响普通请求。
+
             if (!force)
+                // 请求计数只针对普通请求。
                 this.requestCount++;
         }
 

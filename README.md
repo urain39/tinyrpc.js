@@ -5,25 +5,27 @@
 使用方法：
 
 ```ts
-import { JSONRPC } from 'tinyrpc';
+const WebSocket = require('websocket').w3cwebsocket;
+const { JSONRPC } = require('./dist/jsonrpc.bundle.js');
 
-const rpc = new JSONRPC('ws://localhost:9500/jsonrpc');
 
-rpc
+const rpc = new JSONRPC('ws://192.168.1.250:6800/jsonrpc')
     .onOpen(function (event) {
-        console.log('成功：' + event.data);
+        console.log('成功：' + event);
     })
     .onError(function (error) {
-        console.log('错误：' + error.message);
+        console.log('错误：' + error);
     })
     .onNotify(function (data) {
         console.log('通知：' + JSON.stringify(data));
+    })
+    .onReject(function (error) {
+        console.log('繁忙：' + error);
     })
     .request('tellStatus', ['secret:123456'], function (data) {
         console.log('任务：' + JSON.stringify(data));
     });
 
-// 无论完成与否，10秒后关闭连接。
 setTimeout(function () {
     rpc.close();
 }, 10000);
