@@ -7,7 +7,9 @@
 ```ts
 import { JSONRPC } from 'tinyrpc';
 
-new JSONRPC('ws://localhost:9500/jsonrpc')
+const rpc = JSONRPC('ws://localhost:9500/jsonrpc');
+
+rpc
     .onOpen(function (event) {
         console.log('成功：' + event.data);
     })
@@ -20,6 +22,11 @@ new JSONRPC('ws://localhost:9500/jsonrpc')
     .request('tellStatus', ['secret:123456'], function (data) {
         console.log('任务：' + JSON.stringify(data));
     });
+
+// 无论完成与否，10秒后关闭连接。
+setTimeout(function () {
+    rpc.close();
+}, 10000);
 ```
 
 TINY RPC中的`request`方法并非是异步的，它会在每次请求时判断连接状态。
@@ -36,4 +43,5 @@ for (let i = 0; i < 100; i++) {
 ```
 
 除此以外 Tiny RPC 中会限制同一时间内最大的请求数量，默认我将其设置为`8`个，
-如有需要，可以自行编译修改。
+如有需要，可以自行配置修改`JSONRPC.MAX_REQUEST_COUNT`。
+

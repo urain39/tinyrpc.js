@@ -12,7 +12,7 @@ export class JSONRPC {
     /**
      * 最大请求数量。
      */
-    public static MAX_REQUEST_COUNT = 16;
+    public static MAX_REQUEST_COUNT = 8;
 
     public constructor(rpcPath: string) {
         this.rpcPath = rpcPath;
@@ -41,6 +41,7 @@ export class JSONRPC {
 
             if (callback) {
                 callback(data);
+                // 尽管 delete 备受争议，但是这里好像没有更好的方法。
                 delete callbacks[id];
 
                 _this.requestCount--;
@@ -127,7 +128,7 @@ export class JSONRPC {
         if (!this.loaded) {
             const _this = this;
             setTimeout(function () {
-                _this._request(method, params, callback, requestId = requestId);
+                _this._request(method, params, callback, requestId);
             }, 1000);
 
             return this;
@@ -146,4 +147,11 @@ export class JSONRPC {
 
         return this;
     }
+
+    /**
+     * `WebSocket.prototype.close`的包装。
+     */
+    public close(...args: any): any {
+        return this._ws.close(...args);
+    };
 }
