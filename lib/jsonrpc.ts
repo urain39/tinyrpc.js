@@ -49,7 +49,7 @@ export class JSONRPC {
             const response: JSONRPCNotification | JSONRPCResultResponse | JSONRPCErrorResponse = JSON.parse(event.data);
             const handlers = _this._handlers
 
-            if (response.hasOwnProperty( 'id')) {
+            if (hasOwnProperty.call(response, 'id')) {
                 // 都判断了为啥它还是推导不出来呢？= =
                 const id = (response as JSONRPCResponse).id;
 
