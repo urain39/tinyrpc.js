@@ -6,7 +6,7 @@ export interface IMap<V> {
 /**
  * JSONRPC （`JSONRPCResponse`中）参数的类型。
  */
-export type JSONRPCParams = unknown[] | IMap<unknown> | null;
+export type JSONRPCParams = unknown[] | IMap<unknown> | undefined;
 
 /**
  * JSONRPC （`JSONRPCResponse`中）ID的类型。

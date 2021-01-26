@@ -135,6 +135,7 @@ export class JSONRPC {
 
     /**
      * 使用该方法注册消息通知函数。
+     * @param method RPC 方法名称
      * @param notifier 消息通知函数
      */
     public onNotify(method: string, notifier: JSONRPCNotifier): this {
