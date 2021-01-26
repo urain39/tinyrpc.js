@@ -6,7 +6,7 @@ export interface IMap<V> {
 /**
  * JSONRPC （`JSONRPCResponse`中）参数的类型。
  */
-export type JSONRPCParams = unknown[] | IMap<unknown>;
+export type JSONRPCParams = unknown[] | IMap<unknown> | null;
 
 /**
  * JSONRPC （`JSONRPCResponse`中）ID的类型。
@@ -71,14 +71,11 @@ export interface JSONRPCErrorResponse extends JSONRPCResponse {
 export type JSONRPCRejectCallback = (error: Error) => any;
 
 /**
- * JSONRPC 处理通知的回调类型。
- */
-export type JSONRPCNotifyCallback = (notification: JSONRPCNotification) => any;
-
-/**
  * JSONRPC 数据处理的回调类型。
  */
-export interface JSONRPCHandler {
-    (result: JSONRPCResult, error: JSONRPCError | undefined): any;
-    (result: JSONRPCResult | undefined, error: JSONRPCError): any;
-}
+export type JSONRPCHandler =  (result: JSONRPCResult, error?: JSONRPCError) => any;
+
+/**
+ * JSONRPC 处理通知的回调类型。
+ */
+export type JSONRPCNotifier = (params: JSONRPCParams) => any;

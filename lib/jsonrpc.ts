@@ -1,7 +1,7 @@
 import {
-    IMap, JSONRPCHandler, JSONRPCRejectCallback, JSONRPCNotifyCallback,
+    IMap, JSONRPCHandler, JSONRPCRejectCallback, JSONRPCNotifier,
     JSONRPCRequest, JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
-    JSONRPCNotification
+    JSONRPCNotification, JSONRPCParams
 } from "./common";
 
 
@@ -16,10 +16,10 @@ export class JSONRPC {
     public loaded: boolean;
     public requestCount: number;
     public rejectCallback?: JSONRPCRejectCallback;
-    public notifyCallback?: JSONRPCNotifyCallback;
     private _ws: WebSocket;
     private _requestId: number;
     private _handlers: IMap<JSONRPCHandler>;
+    private _notifiers: IMap<JSONRPCNotifier>
 
     /**
      * 最大请求数量。
@@ -33,6 +33,7 @@ export class JSONRPC {
         this._ws = new WebSocket(this.rpcPath);
         this._requestId = 0;
         this._handlers = {};
+        this._notifiers = {};
 
         /**
          * 标记连接状态。
@@ -47,12 +48,12 @@ export class JSONRPC {
          */
         this._ws.addEventListener('message', function (event: MessageEvent) {
             const response: JSONRPCNotification | JSONRPCResultResponse | JSONRPCErrorResponse = JSON.parse(event.data);
-            const handlers = _this._handlers
 
             if (hasOwnProperty.call(response, 'id')) {
                 // 都判断了为啥它还是推导不出来呢？= =
                 const id = (response as JSONRPCResponse).id;
 
+                const handlers = _this._handlers
                 if (hasOwnProperty.call(handlers, id)) {
                     const handler = handlers[id];
 
@@ -68,13 +69,27 @@ export class JSONRPC {
                     delete handlers[id];
 
                     _this.requestCount--;
+                } else {
+                    // TODO: 我们应该考虑未标记过的id吗？
                 }
             } else {
-                // vvv JSON RPC 规定，没有 id 的响应应该视作是通知。
-                const notifyCallback = _this.notifyCallback;
+                // JSON RPC 规定，没有 id 的响应（请求）应该视作是通知。
+                if (hasOwnProperty.call(response, 'method')) {
+                    const method = (response as JSONRPCNotification).method;
 
-                if (notifyCallback)
-                    notifyCallback(response as JSONRPCNotification);
+                    const notifiers = _this._notifiers;
+                    if (hasOwnProperty.call(notifiers, method)) {
+                        const notifier = notifiers[method];
+
+                        const params = (response as JSONRPCNotification).params;
+                        if (params)
+                            notifier(params);
+                    } else {
+                        // TODO: 我们应该考虑未标记过的通知吗？
+                    }
+                } else {
+                    throw new Error('Invalid response with no `id` or `method`');
+                }
             }
         });
     }
@@ -120,10 +135,10 @@ export class JSONRPC {
 
     /**
      * 使用该方法注册消息通知函数。
-     * @param notifyCallback 消息通知函数
+     * @param notifier 消息通知函数
      */
-    public onNotify(notifyCallback: JSONRPCNotifyCallback): this {
-        this.notifyCallback = notifyCallback;
+    public onNotify(method: string, notifier: JSONRPCNotifier): this {
+        this._notifiers[method] = notifier;
 
         return this;
     }
@@ -135,7 +150,7 @@ export class JSONRPC {
      * @param handler 接收到数据后的处理函数
      * @param force 强制请求，该请求一定会被发送
      */
-    public request(method: string, params: any, handler: JSONRPCHandler, force: boolean = false): this {
+    public request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean = false): this {
         return this._request(method, params, handler, force);
     }
 
@@ -143,7 +158,7 @@ export class JSONRPC {
      * `request`方法的底层实现。与`request`方法最大的区别在于其带有一个附加
      * 的参数`requestId`，用于表示这个操作是之前触发的，但是被推迟到现在执行了。
      */
-    private _request(method: string, params: any, handler: JSONRPCHandler, force: boolean, requestId?: number | string): this {
+    private _request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean, requestId?: number | string): this {
         // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）和强制的请求。
         if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId && !force) {
             const rejectCallback = this.rejectCallback;
