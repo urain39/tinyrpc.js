@@ -1,19 +1,25 @@
-import { IMap, JSONRPCCallback } from "./common";
+import {
+    IMap, JSONRPCCallback, JSONRPCRejectCallback, JSONRPCNotifyCallback,
+    JSONRPCHandler, JSONRPCRequest, JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
+    JSONRPCNotification
+} from "./common";
 
 
 // 修复`undefined`可赋值问题。
 const UNDEFINED = void 22;
+
+const hasOwnProperty = {}.hasOwnProperty;
 
 
 export class JSONRPC {
     public rpcPath: string;
     public loaded: boolean;
     public requestCount: number;
-    public rejectCallback?: JSONRPCCallback;
-    public notifyCallback?: JSONRPCCallback;
+    public rejectCallback?: JSONRPCRejectCallback;
+    public notifyCallback?: JSONRPCNotifyCallback;
     private _ws: WebSocket;
     private _requestId: number;
-    private _callbacks: IMap<JSONRPCCallback>;
+    private _handlers: IMap<JSONRPCHandler>;
 
     /**
      * 最大请求数量。
@@ -26,7 +32,7 @@ export class JSONRPC {
         this.requestCount = 0;
         this._ws = new WebSocket(this.rpcPath);
         this._requestId = 0;
-        this._callbacks = {};
+        this._handlers = {};
 
         /**
          * 标记连接状态。
@@ -40,23 +46,35 @@ export class JSONRPC {
          * 处理响应数据。
          */
         this._ws.addEventListener('message', function (event: MessageEvent) {
-            const data = JSON.parse(event.data);
-            const id = data.id;
-            const callbacks = _this._callbacks
-            const callback = callbacks[id];
+            const response: JSONRPCNotification | JSONRPCResultResponse | JSONRPCErrorResponse = JSON.parse(event.data);
+            const handlers = _this._handlers
 
-            if (callback) {
-                callback(data);
-                // 尽管 delete 备受争议，但是这里好像没有更好的方法。
-                delete callbacks[id];
+            if (hasOwnProperty.call(response, 'id')) {
+                // 都判断了为啥它还是推导不出来呢？= =
+                const id = (response as JSONRPCResponse).id;
 
-                _this.requestCount--;
+                if (hasOwnProperty.call(handlers, id)) {
+                    const handler = handlers[id];
+
+                    if (hasOwnProperty.call(response, 'result')) {
+                        handler((response as JSONRPCResultResponse).result, UNDEFINED);
+                    } else if (hasOwnProperty.call(response, 'error')) {
+                        handler(UNDEFINED, (response as JSONRPCErrorResponse).error);
+                    } else {
+                        throw new Error('Invalid response with no `result` or `error`');
+                    }
+
+                    // 尽管 delete 备受争议，但是这里好像没有更好的方法。
+                    delete handlers[id];
+
+                    _this.requestCount--;
+                }
             } else {
                 // vvv JSON RPC 规定，没有 id 的响应应该视作是通知。
                 const notifyCallback = _this.notifyCallback;
 
                 if (notifyCallback)
-                    notifyCallback(data);
+                    notifyCallback(response as JSONRPCNotification);
             }
         });
     }
@@ -71,7 +89,6 @@ export class JSONRPC {
 
         return this;
     }
-
 
     /**
      * 用于监听错误事件。
@@ -95,7 +112,7 @@ export class JSONRPC {
         return this;
     }
 
-    public onReject(rejectCallback: JSONRPCCallback): this {
+    public onReject(rejectCallback: JSONRPCRejectCallback): this {
         this.rejectCallback = rejectCallback;
 
         return this;
@@ -105,7 +122,7 @@ export class JSONRPC {
      * 使用该方法注册消息通知函数。
      * @param notifyCallback 消息通知函数
      */
-    public onNotify(notifyCallback: JSONRPCCallback): this {
+    public onNotify(notifyCallback: JSONRPCNotifyCallback): this {
         this.notifyCallback = notifyCallback;
 
         return this;
@@ -115,18 +132,18 @@ export class JSONRPC {
      * 发送请求的方法。
      * @param method RPC 方法名称
      * @param params 参数列表，可为空
-     * @param callback 接收到数据后的处理函数
+     * @param handler 接收到数据后的处理函数
      * @param force 强制请求，该请求一定会被发送
      */
-    public request(method: string, params: any, callback: JSONRPCCallback, force: boolean = false): this {
-        return this._request(method, params, callback, force);
+    public request(method: string, params: any, handler: JSONRPCCallback, force: boolean = false): this {
+        return this._request(method, params, handler, force);
     }
 
     /**
      * `request`方法的底层实现。与`request`方法最大的区别在于其带有一个附加
      * 的参数`requestId`，用于表示这个操作是之前触发的，但是被推迟到现在执行了。
      */
-    private _request(method: string, params: any, callback: JSONRPCCallback, force: boolean, requestId?: number | string): this {
+    private _request(method: string, params: any, handler: JSONRPCCallback, force: boolean, requestId?: number | string): this {
         // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）和强制的请求。
         if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId && !force) {
             const rejectCallback = this.rejectCallback;
@@ -149,22 +166,24 @@ export class JSONRPC {
         if (!this.loaded) {
             const _this = this;
             setTimeout(function () {
-                _this._request(method, params, callback, force, requestId);
+                _this._request(method, params, handler, force, requestId);
             }, 1000);
 
             return this;
         }
 
-        // 发送请求。
-        this._ws.send(JSON.stringify({
+        const request: JSONRPCRequest = {
             jsonrpc: '2.0',
             id: requestId,
             method,
             params
-        }));
+        };
+
+        // 发送请求。
+        this._ws.send(JSON.stringify(request));
 
         // 注册回调。
-        this._callbacks[requestId] = callback;
+        this._handlers[requestId] = handler;
 
         return this;
     }
