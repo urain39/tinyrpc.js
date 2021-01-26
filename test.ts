@@ -1,6 +1,6 @@
 import { JSONRPC } from './lib/jsonrpc';
 
-new JSONRPC('ws://192.168.1.250:6800/jsonrpc')
+const rpc = new JSONRPC('ws://192.168.1.250:6800/jsonrpc')
 	.onOpen(function () {
 		console.log('连接成功！');
 	})
@@ -13,10 +13,18 @@ new JSONRPC('ws://192.168.1.250:6800/jsonrpc')
 	.onNotify('aria2.onDownloadComplete', function (params) {
 		console.log('下载完成：' + JSON.stringify(params));
 	})
-	.request('aria2.tellActive', undefined, function (result, error) {
+	.onClose(function () {
+		console.log('通讯关闭！');
+	})
+	.request('aria2.tellActive', void 0, function (result, error) {
 		if (result) {
 			console.log('结果：' + JSON.stringify(result));
 		} else if (error) {
 			console.log('错误：' + JSON.stringify(error));
 		}
 	});
+
+// 五秒后关闭
+setTimeout(function () {
+	rpc.close();
+}, 5000);
