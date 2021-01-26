@@ -3,8 +3,6 @@ export interface IMap<V> {
     [index: number]: V;
 }
 
-export type JSONRPCCallback = (data: unknown) => any;
-
 /**
  * JSONRPC （`JSONRPCResponse`中）参数的类型。
  */

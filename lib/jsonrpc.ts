@@ -1,6 +1,6 @@
 import {
-    IMap, JSONRPCCallback, JSONRPCRejectCallback, JSONRPCNotifyCallback,
-    JSONRPCHandler, JSONRPCRequest, JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
+    IMap, JSONRPCHandler, JSONRPCRejectCallback, JSONRPCNotifyCallback,
+    JSONRPCRequest, JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
     JSONRPCNotification
 } from "./common";
 
@@ -49,7 +49,7 @@ export class JSONRPC {
             const response: JSONRPCNotification | JSONRPCResultResponse | JSONRPCErrorResponse = JSON.parse(event.data);
             const handlers = _this._handlers
 
-            if (hasOwnProperty.call(response, 'id')) {
+            if (response.hasOwnProperty( 'id')) {
                 // 都判断了为啥它还是推导不出来呢？= =
                 const id = (response as JSONRPCResponse).id;
 
@@ -135,7 +135,7 @@ export class JSONRPC {
      * @param handler 接收到数据后的处理函数
      * @param force 强制请求，该请求一定会被发送
      */
-    public request(method: string, params: any, handler: JSONRPCCallback, force: boolean = false): this {
+    public request(method: string, params: any, handler: JSONRPCHandler, force: boolean = false): this {
         return this._request(method, params, handler, force);
     }
 
@@ -143,7 +143,7 @@ export class JSONRPC {
      * `request`方法的底层实现。与`request`方法最大的区别在于其带有一个附加
      * 的参数`requestId`，用于表示这个操作是之前触发的，但是被推迟到现在执行了。
      */
-    private _request(method: string, params: any, handler: JSONRPCCallback, force: boolean, requestId?: number | string): this {
+    private _request(method: string, params: any, handler: JSONRPCHandler, force: boolean, requestId?: number | string): this {
         // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）和强制的请求。
         if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId && !force) {
             const rejectCallback = this.rejectCallback;
