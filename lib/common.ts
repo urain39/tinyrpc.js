@@ -77,6 +77,9 @@ export type JSONRPCRejectCallback = (error: Error) => any;
  */
 export type JSONRPCNotifyCallback = (notification: JSONRPCNotification) => any;
 
+/**
+ * JSONRPC 数据处理的回调类型。
+ */
 export interface JSONRPCHandler {
     (result: JSONRPCResult, error: JSONRPCError | undefined): any;
     (result: JSONRPCResult | undefined, error: JSONRPCError): any;
