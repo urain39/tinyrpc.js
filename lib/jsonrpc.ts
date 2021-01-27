@@ -26,6 +26,21 @@ export class JSONRPC {
      */
     public static MAX_REQUEST_COUNT = 8;
 
+    /**
+     * 请求时推迟执行的间隔时间，默认是1秒。
+     */
+    public static CONNECTION_CHECK_DELAY = 1000;
+
+    /**
+     * 发送心跳包时使用的方法，默认是“.heartbeat”的 base64 结果。
+     */
+    public static HEARTBEAT_METHOD = 'LmhlYXJ0YmVhdA==';
+
+    /**
+     * 发送心跳包的间隔时间，默认是15秒。
+     */
+    public static HEARTBEAT_DELAY = 15000;
+
     public constructor(rpcPath: string) {
         this.rpcPath = rpcPath;
         this.loaded = false;
@@ -152,14 +167,16 @@ export class JSONRPC {
      * @param force 强制请求，该请求一定会被发送
      */
     public request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean = false): this {
-        return this._request(method, params, handler, force);
+        this._request(method, params, handler, force);
+
+        return this;
     }
 
     /**
      * `request`方法的底层实现。与`request`方法最大的区别在于其带有一个附加
      * 的参数`requestId`，用于表示这个操作是之前触发的，但是被推迟到现在执行了。
      */
-    private _request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean, requestId?: number | string): this {
+    private _request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean, requestId?: number | string): void {
         // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）和强制的请求。
         if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId && !force) {
             const rejectCallback = this.rejectCallback;
@@ -167,7 +184,7 @@ export class JSONRPC {
             if (rejectCallback)
                 rejectCallback(new Error('Maximum concurrent request count'));
 
-            return this;
+            return;
         }
 
         if (requestId === UNDEFINED) {
@@ -183,9 +200,9 @@ export class JSONRPC {
             const _this = this;
             setTimeout(function () {
                 _this._request(method, params, handler, force, requestId);
-            }, 1000);
+            }, JSONRPC.CONNECTION_CHECK_DELAY);
 
-            return this;
+            return;
         }
 
         const request: JSONRPCRequest = {
@@ -200,6 +217,38 @@ export class JSONRPC {
 
         // 注册回调。
         this._handlers[requestId] = handler;
+
+        return;
+    }
+
+    /**
+     * 发送心跳包的方法。它会每隔`JSONRPC.HEARTBEAT_DELAY`毫秒请求一个
+     * `JSONRPC.HEARTBEAT_METHOD` RPC 方法，如果在下一轮请求前仍未回应则视为已死亡。
+     * @param onDead 死亡后执行的回调
+     */
+    public heartbeat(onDead: () => any): this {
+        let isDead: boolean,
+            firstRun: boolean;
+
+        const _this = this;
+        const timer = setInterval(function () {
+            if (firstRun) {
+                // 第一次不检测是否死亡（因为我们还未发送心跳包）
+                firstRun = false;
+            } else {
+                if (isDead) {
+                    _this.close();
+                    clearInterval(timer);
+                    onDead();
+                }
+            }
+
+            isDead = true; // 假定其已经死亡
+            _this.request(JSONRPC.HEARTBEAT_METHOD, UNDEFINED, function () {
+                // 如果有响应的话则证明其是活的
+                isDead = false;
+            }, true); // 心跳包是强制发送的！
+        }, JSONRPC.HEARTBEAT_DELAY);
 
         return this;
     }

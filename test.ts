@@ -16,6 +16,9 @@ const rpc = new JSONRPC('ws://192.168.1.250:6800/jsonrpc')
 	.onClose(function () {
 		console.log('通讯关闭！');
 	})
+	.heartbeat(function () {
+		console.log('心跳包响应超时！');
+	})
 	.request('aria2.tellActive', void 0, function (result, error) {
 		if (result) {
 			console.log('结果：' + JSON.stringify(result));
