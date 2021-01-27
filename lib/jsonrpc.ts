@@ -1,7 +1,7 @@
 import {
-    IMap, JSONRPCHandler, JSONRPCRejectCallback, JSONRPCNotifier,
-    JSONRPCRequest, JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
-    JSONRPCNotification, JSONRPCParams, JSONRPCError
+    IMap, JSONRPCHandler, JSONRPCNotifier, JSONRPCRequest,
+    JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
+    JSONRPCNotification, JSONRPCID, JSONRPCParams, JSONRPCError
 } from "./common";
 
 
@@ -15,7 +15,6 @@ export class JSONRPC {
     public rpcPath: string;
     public isReady: boolean;
     public requestCount: number;
-    public rejectCallback?: JSONRPCRejectCallback;
     private _ws: WebSocket;
     private _requestId: number;
     private _handlers: IMap<JSONRPCHandler>;
@@ -27,6 +26,11 @@ export class JSONRPC {
     public static MAX_REQUEST_COUNT = 8;
 
     /**
+     * 最大重试次数。
+     */
+    public static MAX_RETRY_COUNT = 3;
+
+    /**
      * 请求时推迟执行的间隔时间，默认是1秒。
      */
     public static CONNECTION_CHECK_DELAY = 1000;
@@ -36,10 +40,24 @@ export class JSONRPC {
      */
     public static HEARTBEAT_DELAY = 15000;
 
+
+    // --------------- TinyRPC 定义的错误信息 ----------------------
+    // - JSONRPC 中定义的服务器错误取值范围是`-32000`至`-32099`，而
+    // - TinyRPC 选用了其中`-32032`至`-32039`作为预留的非服务器响应
+    // - 的错误码（即这是 TinyRPC 判断出来的）。
+    // ------------------------------------------------------------
+
+    public static ERROR_MAX_CONCURRENT = -32032;
+
     /**
-     * 心跳包未响应时的错误码。JSONRPC 2.0 规定的取值范围是`-32000`至`-32099`
+     * 超过最大重试次数的错误码。
      */
-    public static ERROR_HEARTBEAT_TIMEDOUT = -32032;
+    public static ERROR_MAX_RETRY = -32033;
+
+    /**
+     * 心跳包未响应时的错误码。
+     */
+    public static ERROR_HEARTBEAT_TIMEDOUT = -32034;
 
     public constructor(rpcPath: string) {
         this.rpcPath = rpcPath;
@@ -86,7 +104,6 @@ export class JSONRPC {
 
                     // 尽管 delete 备受争议，但是这里好像没有更好的方法。
                     delete handlers[id];
-
                     _this.requestCount--;
                 } else {
                     // TODO: 我们应该考虑未标记过的id吗？
@@ -146,12 +163,6 @@ export class JSONRPC {
         return this;
     }
 
-    public onReject(rejectCallback: JSONRPCRejectCallback): this {
-        this.rejectCallback = rejectCallback;
-
-        return this;
-    }
-
     /**
      * 使用该方法注册消息通知函数。
      * @param method RPC 方法名称
@@ -171,7 +182,7 @@ export class JSONRPC {
      * @param force 强制请求，该请求一定会被发送
      */
     public request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean = false): this {
-        this._request(method, params, handler, force);
+        this._request(method, params, handler, force, UNDEFINED);
 
         return this;
     }
@@ -179,18 +190,28 @@ export class JSONRPC {
     /**
      * `request`方法的底层实现。与`request`方法最大的区别在于其带有一个附加
      * 的参数`requestId`，用于表示这个操作是之前触发的，但是被推迟到现在执行了。
+     * @param requestId 请求 id
+     * @param retry_count 重试计数
      */
-    private _request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean, requestId?: number | string): void {
+    private _request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean, requestId: JSONRPCID | undefined, retry_count: number = 0): void {
         // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）和强制的请求。
         if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId && !force) {
-            const rejectCallback = this.rejectCallback;
-
-            if (rejectCallback)
-                rejectCallback(new Error('Maximum concurrent request count'));
+            handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_CONCURRENT, message: 'Max concurrent error' })
 
             return;
         }
 
+        // 忽略重试过多的请求，但不包括强制的请求。
+        if (retry_count > JSONRPC.MAX_RETRY_COUNT && !force) {
+            handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_RETRY, message: 'Max retry error' })
+            this.requestCount--;
+
+            return;
+        } else {
+            retry_count++;
+        }
+
+        // 判断请求状态。
         if (requestId === UNDEFINED) {
             requestId = this._requestId++;
 
@@ -203,7 +224,7 @@ export class JSONRPC {
         if (!this.isReady) {
             const _this = this;
             setTimeout(function () {
-                _this._request(method, params, handler, force, requestId);
+                _this._request(method, params, handler, force, requestId, retry_count);
             }, JSONRPC.CONNECTION_CHECK_DELAY);
 
             return;

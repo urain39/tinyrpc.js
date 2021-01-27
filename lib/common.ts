@@ -66,14 +66,9 @@ export interface JSONRPCErrorResponse extends JSONRPCResponse {
 }
 
 /**
- * JSONRPC 处理错误的回调类型。
- */
-export type JSONRPCRejectCallback = (error: Error) => any;
-
-/**
  * JSONRPC 数据处理的回调类型。
  */
-export type JSONRPCHandler =  (result: JSONRPCResult, error?: JSONRPCError) => any;
+export type JSONRPCHandler = (result: JSONRPCResult, error?: JSONRPCError) => any;
 
 /**
  * JSONRPC 处理通知的回调类型。
