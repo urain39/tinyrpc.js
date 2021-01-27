@@ -29,7 +29,13 @@ const rpc = new JSONRPC('ws://localhost:6800/jsonrpc')
 // 	rpc.close();
 // }, 5000);
 
-rpc.heartbeat('', [], function (result, error) {
+rpc.heartbeat('', [], function (isDead, result, error) {
+	if (isDead) {
+		console.log('心跳包丢失！');
+
+		return;
+	}
+
 	if (error) {
 		console.log('心跳包错误：' + JSON.stringify(error));
 	} else {

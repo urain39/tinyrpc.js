@@ -1,7 +1,8 @@
 import {
     IMap, JSONRPCHandler, JSONRPCNotifier, JSONRPCRequest,
     JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
-    JSONRPCNotification, JSONRPCID, JSONRPCParams, JSONRPCError
+    JSONRPCNotification, JSONRPCID, JSONRPCParams, JSONRPCError,
+    JSONRPCHeartbeatHandler
 } from "./common";
 
 
@@ -45,7 +46,7 @@ export class JSONRPC {
     // - JSONRPC 中定义的服务器错误码取值范围是`-32000`至`-32099`，
     // - 而 TinyRPC 选用了其中`-32032`至`-32039`作为预留的非服务器响
     // - 应的错误码（即这是 TinyRPC 判断出来的）。
-    // ------------------------------------------------------------
+    // ---------------------------------------------------------
 
     /**
      * 超过最大并发任务数时的错误码。
@@ -197,7 +198,6 @@ export class JSONRPC {
      * @param retryCount 重试计数
      */
     private _request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean, requestId: JSONRPCID | undefined, retryCount: number = 0): void {
-
         if (!force) {
             // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）的请求。
             if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId) {
@@ -259,7 +259,7 @@ export class JSONRPC {
      * @param params 心跳包的参数列表，可为空
      * @param handler 心跳包响应的处理函数
      */
-    public heartbeat(method: string, params: JSONRPCParams, handler: JSONRPCHandler): this {
+    public heartbeat(method: string, params: JSONRPCParams, handler: JSONRPCHeartbeatHandler): this {
         let isDead: boolean,
             firstRun: boolean;
 
@@ -272,7 +272,7 @@ export class JSONRPC {
                 if (isDead) {
                     _this.close();
                     clearInterval(timer);
-                    handler(UNDEFINED, { code: JSONRPC.ERROR_HEARTBEAT_TIMEDOUT, message: 'Heartbeat timed out' });
+                    handler(isDead, UNDEFINED, { code: JSONRPC.ERROR_HEARTBEAT_TIMEDOUT, message: 'Heartbeat timed out' });
                 }
             }
 
@@ -280,7 +280,7 @@ export class JSONRPC {
             _this.request(method, params, function (result: unknown, error?: JSONRPCError) {
                 // 如果有响应的话则证明其是活的
                 isDead = false;
-                handler(result, error);
+                handler(isDead, result, error);
             }, true); // 心跳包是强制发送的！
         }, JSONRPC.HEARTBEAT_DELAY);
 

@@ -3,6 +3,9 @@ export interface IMap<V> {
     [index: number]: V;
 }
 
+type ArgumentsType<FN extends (...args: any[]) => any> =
+    FN extends (...args: infer AT) => any ? AT : any[];
+
 /**
  * JSONRPC （`JSONRPCResponse`中）参数的类型。
  */
@@ -69,6 +72,13 @@ export interface JSONRPCErrorResponse extends JSONRPCResponse {
  * JSONRPC 数据处理的回调类型。
  */
 export type JSONRPCHandler = (result: JSONRPCResult, error?: JSONRPCError) => any;
+
+type JSONRPCHandlerArguments = ArgumentsType<JSONRPCHandler>;
+
+/**
+ * JSONRPC 心跳包处理的回调类型。
+ */
+export type JSONRPCHeartbeatHandler = (isDead: boolean, ...args: JSONRPCHandlerArguments) => any;
 
 /**
  * JSONRPC 处理通知的回调类型。
