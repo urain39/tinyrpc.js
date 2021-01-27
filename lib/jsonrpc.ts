@@ -47,6 +47,9 @@ export class JSONRPC {
     // - 的错误码（即这是 TinyRPC 判断出来的）。
     // ------------------------------------------------------------
 
+    /**
+     * 超过最大并行任务数时的错误码。
+     */
     public static ERROR_MAX_CONCURRENT = -32032;
 
     /**
@@ -102,8 +105,8 @@ export class JSONRPC {
                         throw new Error('Invalid response with no `result` or `error`');
                     }
 
-                    // 尽管 delete 备受争议，但是这里好像没有更好的方法。
-                    delete handlers[id];
+                    // vvv 此处我们想将其设置为`undefied`以删除变量。
+                    (handlers[id] as any) = UNDEFINED;
                     _this.requestCount--;
                 } else {
                     // TODO: 我们应该考虑未标记过的id吗？
@@ -194,21 +197,24 @@ export class JSONRPC {
      * @param retry_count 重试计数
      */
     private _request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean, requestId: JSONRPCID | undefined, retry_count: number = 0): void {
-        // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）和强制的请求。
-        if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId && !force) {
-            handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_CONCURRENT, message: 'Max concurrent error' })
 
-            return;
-        }
+        if (!force) {
+            // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）的请求。
+            if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId) {
+                handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_CONCURRENT, message: 'Max concurrent error' })
 
-        // 忽略重试过多的请求，但不包括强制的请求。
-        if (retry_count > JSONRPC.MAX_RETRY_COUNT && !force) {
-            handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_RETRY, message: 'Max retry error' })
-            this.requestCount--;
+                return;
+            }
 
-            return;
-        } else {
-            retry_count++;
+            // 忽略重试过多的请求。
+            if (retry_count > JSONRPC.MAX_RETRY_COUNT) {
+                handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_RETRY, message: 'Max retry error' })
+                this.requestCount--;
+
+                return;
+            } else {
+                retry_count++;
+            }
         }
 
         // 判断请求状态。
