@@ -1,7 +1,7 @@
 import {
     IMap, JSONRPCHandler, JSONRPCRejectCallback, JSONRPCNotifier,
     JSONRPCRequest, JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
-    JSONRPCNotification, JSONRPCParams
+    JSONRPCNotification, JSONRPCParams, JSONRPCError
 } from "./common";
 
 
@@ -13,7 +13,7 @@ const hasOwnProperty = {}.hasOwnProperty;
 
 export class JSONRPC {
     public rpcPath: string;
-    public loaded: boolean;
+    public isReady: boolean;
     public requestCount: number;
     public rejectCallback?: JSONRPCRejectCallback;
     private _ws: WebSocket;
@@ -32,18 +32,18 @@ export class JSONRPC {
     public static CONNECTION_CHECK_DELAY = 1000;
 
     /**
-     * 发送心跳包时使用的方法，默认是“.heartbeat”的 base64 结果。
-     */
-    public static HEARTBEAT_METHOD = 'LmhlYXJ0YmVhdA==';
-
-    /**
      * 发送心跳包的间隔时间，默认是15秒。
      */
     public static HEARTBEAT_DELAY = 15000;
 
+    /**
+     * 心跳包未响应时的错误码。JSONRPC 2.0 规定的取值范围是`-32000`至`-32099`
+     */
+    public static ERROR_HEARTBEAT_TIMEDOUT = -32032;
+
     public constructor(rpcPath: string) {
         this.rpcPath = rpcPath;
-        this.loaded = false;
+        this.isReady = false;
         this.requestCount = 0;
         this._ws = new WebSocket(this.rpcPath);
         this._requestId = 0;
@@ -54,8 +54,12 @@ export class JSONRPC {
          * 标记连接状态。
          */
         const _this = this;
-        this._ws.addEventListener('open', function () {
-            _this.loaded = true;
+        this.onOpen(function () {
+            _this.isReady = true;
+        });
+
+        this.onClose(function () {
+            _this.isReady = false;
         });
 
         /**
@@ -196,7 +200,7 @@ export class JSONRPC {
         }
 
         // 等待连接。
-        if (!this.loaded) {
+        if (!this.isReady) {
             const _this = this;
             setTimeout(function () {
                 _this._request(method, params, handler, force, requestId);
@@ -222,11 +226,13 @@ export class JSONRPC {
     }
 
     /**
-     * 发送心跳包的方法。它会每隔`JSONRPC.HEARTBEAT_DELAY`毫秒请求一个
-     * `JSONRPC.HEARTBEAT_METHOD` RPC 方法，如果在下一轮请求前仍未回应则视为已死亡。
-     * @param onDead 死亡后执行的回调
+     * 发送心跳包的方法。该方法会引用`JSONRPC.ERROR_HEARTBEAT_TIMEDOUT`属性，
+     * 用于作为其内部生成的错误代码。
+     * @param method 心跳包的 RPC 方法名称
+     * @param params 心跳包的参数列表，可为空
+     * @param handler 心跳包响应的处理函数
      */
-    public heartbeat(onDead: () => any): this {
+    public heartbeat(method: string, params: JSONRPCParams, handler: JSONRPCHandler): this {
         let isDead: boolean,
             firstRun: boolean;
 
@@ -239,14 +245,15 @@ export class JSONRPC {
                 if (isDead) {
                     _this.close();
                     clearInterval(timer);
-                    onDead();
+                    handler(UNDEFINED, { code: JSONRPC.ERROR_HEARTBEAT_TIMEDOUT, message: 'Heartbeat timed out' });
                 }
             }
 
             isDead = true; // 假定其已经死亡
-            _this.request(JSONRPC.HEARTBEAT_METHOD, UNDEFINED, function () {
+            _this.request(method, params, function (result: unknown, error?: JSONRPCError) {
                 // 如果有响应的话则证明其是活的
                 isDead = false;
+                handler(result, error);
             }, true); // 心跳包是强制发送的！
         }, JSONRPC.HEARTBEAT_DELAY);
 

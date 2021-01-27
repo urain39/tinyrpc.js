@@ -1,6 +1,6 @@
 import { JSONRPC } from './lib/jsonrpc';
 
-const rpc = new JSONRPC('ws://192.168.1.250:6800/jsonrpc')
+const rpc = new JSONRPC('ws://localhost:6800/jsonrpc')
 	.onOpen(function () {
 		console.log('连接成功！');
 	})
@@ -16,9 +16,6 @@ const rpc = new JSONRPC('ws://192.168.1.250:6800/jsonrpc')
 	.onClose(function () {
 		console.log('通讯关闭！');
 	})
-	.heartbeat(function () {
-		console.log('心跳包响应超时！');
-	})
 	.request('aria2.tellActive', void 0, function (result, error) {
 		if (result) {
 			console.log('结果：' + JSON.stringify(result));
@@ -28,6 +25,14 @@ const rpc = new JSONRPC('ws://192.168.1.250:6800/jsonrpc')
 	});
 
 // 五秒后关闭
-setTimeout(function () {
-	rpc.close();
-}, 5000);
+// setTimeout(function () {
+// 	rpc.close();
+// }, 5000);
+
+rpc.heartbeat('', [], function (result, error) {
+	if (error) {
+		console.log('心跳包错误：' + JSON.stringify(error));
+	} else {
+		console.log('心跳包：' + JSON.stringify(result));
+	}
+});
