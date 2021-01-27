@@ -194,9 +194,9 @@ export class JSONRPC {
      * `request`方法的底层实现。与`request`方法最大的区别在于其带有一个附加
      * 的参数`requestId`，用于表示这个操作是之前触发的，但是被推迟到现在执行了。
      * @param requestId 请求 id
-     * @param retry_count 重试计数
+     * @param retryCount 重试计数
      */
-    private _request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean, requestId: JSONRPCID | undefined, retry_count: number = 0): void {
+    private _request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean, requestId: JSONRPCID | undefined, retryCount: number = 0): void {
 
         if (!force) {
             // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）的请求。
@@ -207,13 +207,13 @@ export class JSONRPC {
             }
 
             // 忽略重试过多的请求。
-            if (retry_count > JSONRPC.MAX_RETRY_COUNT) {
+            if (retryCount > JSONRPC.MAX_RETRY_COUNT) {
                 handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_RETRY, message: 'Max retry error' })
                 this.requestCount--;
 
                 return;
             } else {
-                retry_count++;
+                retryCount++;
             }
         }
 
@@ -230,7 +230,7 @@ export class JSONRPC {
         if (!this.isReady) {
             const _this = this;
             setTimeout(function () {
-                _this._request(method, params, handler, force, requestId, retry_count);
+                _this._request(method, params, handler, force, requestId, retryCount);
             }, JSONRPC.CONNECTION_CHECK_DELAY);
 
             return;
