@@ -260,20 +260,14 @@ export class JSONRPC {
      * @param handler 心跳包响应的处理函数
      */
     public heartbeat(method: string, params: JSONRPCParams, handler: JSONRPCHeartbeatHandler): this {
-        let isDead: boolean,
-            firstRun: boolean;
+        let isDead: boolean = false;
 
         const _this = this;
         const timer = setInterval(function () {
-            if (firstRun) {
-                // 第一次不检测是否死亡（因为我们还未发送心跳包）
-                firstRun = false;
-            } else {
-                if (isDead) {
-                    _this.close();
-                    clearInterval(timer);
-                    handler(isDead, UNDEFINED, { code: JSONRPC.ERROR_HEARTBEAT_TIMEDOUT, message: 'Heartbeat timed out' });
-                }
+            if (isDead) {
+                _this.close();
+                clearInterval(timer);
+                handler(isDead, UNDEFINED, { code: JSONRPC.ERROR_HEARTBEAT_TIMEDOUT, message: 'Heartbeat timed out' });
             }
 
             isDead = true; // 假定其已经死亡
