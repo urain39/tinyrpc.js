@@ -3,7 +3,7 @@ export interface IMap<V> {
     [index: number]: V;
 }
 
-type ArgumentsType<FN extends (...args: any[]) => any> =
+export type ArgumentsType<FN extends (...args: any[]) => any> =
     FN extends (...args: infer AT) => any ? AT : any[];
 
 /**

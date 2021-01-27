@@ -2,7 +2,7 @@ import {
     IMap, JSONRPCHandler, JSONRPCNotifier, JSONRPCRequest,
     JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
     JSONRPCNotification, JSONRPCID, JSONRPCParams, JSONRPCError,
-    JSONRPCHeartbeatHandler
+    JSONRPCHeartbeatHandler, ArgumentsType
 } from "./common";
 
 
@@ -27,11 +27,6 @@ export class JSONRPC {
     public static MAX_REQUEST_COUNT = 8;
 
     /**
-     * 最大重试次数。
-     */
-    public static MAX_RETRY_COUNT = 3;
-
-    /**
      * 请求时推迟执行的间隔时间，默认是1秒。
      */
     public static CONNECTION_CHECK_DELAY = 1000;
@@ -54,14 +49,9 @@ export class JSONRPC {
     public static ERROR_MAX_CONCURRENT = -32032;
 
     /**
-     * 超过最大重试次数的错误码。
-     */
-    public static ERROR_MAX_RETRY = -32033;
-
-    /**
      * 心跳包未响应时的错误码。
      */
-    public static ERROR_HEARTBEAT_TIMEDOUT = -32034;
+    public static ERROR_HEARTBEAT_TIMEDOUT = -32033;
 
     public constructor(rpcPath: string) {
         this.rpcPath = rpcPath;
@@ -186,7 +176,7 @@ export class JSONRPC {
      * @param force 强制请求，该请求一定会被发送
      */
     public request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean = false): this {
-        this._request(method, params, handler, force, UNDEFINED);
+        this._request(method, params, handler, force);
 
         return this;
     }
@@ -195,25 +185,14 @@ export class JSONRPC {
      * `request`方法的底层实现。与`request`方法最大的区别在于其带有一个附加
      * 的参数`requestId`，用于表示这个操作是之前触发的，但是被推迟到现在执行了。
      * @param requestId 请求 id
-     * @param retryCount 重试计数
      */
-    private _request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean, requestId: JSONRPCID | undefined, retryCount: number = 0): void {
+    private _request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean, requestId?: JSONRPCID): void {
         if (!force) {
             // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）的请求。
             if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId) {
                 handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_CONCURRENT, message: 'Max concurrent error' })
 
                 return;
-            }
-
-            // 忽略重试过多的请求。
-            if (retryCount > JSONRPC.MAX_RETRY_COUNT) {
-                handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_RETRY, message: 'Max retry error' })
-                this.requestCount--;
-
-                return;
-            } else {
-                retryCount++;
             }
         }
 
@@ -230,7 +209,7 @@ export class JSONRPC {
         if (!this.isReady) {
             const _this = this;
             setTimeout(function () {
-                _this._request(method, params, handler, force, requestId, retryCount);
+                _this._request(method, params, handler, force, requestId);
             }, JSONRPC.CONNECTION_CHECK_DELAY);
 
             return;
@@ -284,7 +263,7 @@ export class JSONRPC {
     /**
      * `WebSocket.prototype.close`的包装。
      */
-    public close(...args: any): any {
+    public close(...args: ArgumentsType<typeof WebSocket.prototype.close>): any {
         return this._ws.close(...args);
     };
 }
