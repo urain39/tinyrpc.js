@@ -128,9 +128,8 @@ export class JSONRPC {
      * 用于监听开启事件。
      * @param listener 开启事件监听器
      */
-    public onOpen(listener: typeof WebSocket.prototype.onopen): this {
-        if (listener)
-            this._ws.addEventListener('open', listener);
+    public onOpen(listener: Exclude<typeof WebSocket.prototype.onopen, null>): this {
+        this._ws.addEventListener('open', listener);
 
         return this;
     }
@@ -139,9 +138,8 @@ export class JSONRPC {
      * 用于监听错误事件。
      * @param listener 错误事件监听器
      */
-    public onError(listener: typeof WebSocket.prototype.onerror): this {
-        if (listener)
-            this._ws.addEventListener('error', listener);
+    public onError(listener: Exclude<typeof WebSocket.prototype.onerror, null>): this {
+        this._ws.addEventListener('error', listener);
 
         return this;
     }
@@ -150,9 +148,8 @@ export class JSONRPC {
      * 用于监听关闭事件。
      * @param listener 关闭事件监听器
      */
-    public onClose(listener: typeof WebSocket.prototype.onclose): this {
-        if (listener)
-            this._ws.addEventListener('close', listener);
+    public onClose(listener: Exclude<typeof WebSocket.prototype.onclose, null>): this {
+        this._ws.addEventListener('close', listener);
 
         return this;
     }
