@@ -6,6 +6,13 @@ export interface IMap<V> {
 export type ArgumentsType<FN extends (...args: any[]) => any> =
     FN extends (...args: infer AT) => any ? AT : any[];
 
+export interface JSONRPCEventListenerMap {
+    open: Exclude<typeof WebSocket.prototype.onopen, null>[];
+    error: Exclude<typeof WebSocket.prototype.onerror, null>[];
+    message: Exclude<typeof WebSocket.prototype.onmessage, null>[];
+    close: Exclude<typeof WebSocket.prototype.onclose, null>[];
+}
+
 /**
  * JSONRPC （`JSONRPCResponse`中）参数的类型。
  */

@@ -2,15 +2,12 @@ import {
     IMap, JSONRPCHandler, JSONRPCNotifier, JSONRPCRequest,
     JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
     JSONRPCNotification, JSONRPCID, JSONRPCParams, JSONRPCError,
-    JSONRPCHeartbeatHandler, ArgumentsType
+    JSONRPCHeartbeatHandler, ArgumentsType, JSONRPCEventListenerMap
 } from "./common";
-
 
 // 修复`undefined`可赋值问题。
 const UNDEFINED = void 22;
-
 const hasOwnProperty = {}.hasOwnProperty;
-
 
 export class JSONRPC {
     public rpcPath: string;
@@ -18,6 +15,7 @@ export class JSONRPC {
     public requestCount: number;
     private _ws: WebSocket;
     private _requestId: number;
+    private _listeners: JSONRPCEventListenerMap;
     private _handlers: IMap<JSONRPCHandler>;
     private _notifiers: IMap<JSONRPCNotifier>
 
@@ -59,6 +57,7 @@ export class JSONRPC {
         this.requestCount = 0;
         this._ws = new WebSocket(this.rpcPath);
         this._requestId = 0;
+        this._listeners = { open: [], error: [], message: [], close: [] };
         this._handlers = {};
         this._notifiers = {};
 
@@ -77,7 +76,8 @@ export class JSONRPC {
         /**
          * 处理响应数据。
          */
-        this._ws.addEventListener('message', function (event: MessageEvent) {
+        let defaultMessageListener: Exclude<typeof WebSocket.prototype.onmessage, null>;
+        this._ws.addEventListener('message', defaultMessageListener = function (event: MessageEvent): any {
             const response: JSONRPCNotification | JSONRPCResultResponse | JSONRPCErrorResponse = JSON.parse(event.data);
 
             if (hasOwnProperty.call(response, 'id')) {
@@ -122,6 +122,7 @@ export class JSONRPC {
                 }
             }
         });
+        this._listeners.message.push(defaultMessageListener);
     }
 
     /**
@@ -130,6 +131,7 @@ export class JSONRPC {
      */
     public onOpen(listener: Exclude<typeof WebSocket.prototype.onopen, null>): this {
         this._ws.addEventListener('open', listener);
+        this._listeners.open.push(listener);
 
         return this;
     }
@@ -140,6 +142,7 @@ export class JSONRPC {
      */
     public onError(listener: Exclude<typeof WebSocket.prototype.onerror, null>): this {
         this._ws.addEventListener('error', listener);
+        this._listeners.error.push(listener);
 
         return this;
     }
@@ -150,6 +153,7 @@ export class JSONRPC {
      */
     public onClose(listener: Exclude<typeof WebSocket.prototype.onclose, null>): this {
         this._ws.addEventListener('close', listener);
+        this._listeners.close.push(listener);
 
         return this;
     }
@@ -260,7 +264,36 @@ export class JSONRPC {
     /**
      * `WebSocket.prototype.close`的包装。
      */
-    public close(...args: ArgumentsType<typeof WebSocket.prototype.close>): any {
-        return this._ws.close(...args);
+    public close(...args: ArgumentsType<typeof WebSocket.prototype.close>): void {
+        this._ws.close(...args);
     };
+
+    /**
+     * 重连接的方法。
+     */
+    public reconnect(): this {
+        const listeners = this._listeners;
+        const ws = new WebSocket(this.rpcPath);
+
+        // TypeScript 中的类型推断还有待提高啊
+        for (const listener of listeners.open) {
+            ws.addEventListener('open', listener);
+        }
+
+        for (const listener of listeners.error) {
+            ws.addEventListener('error', listener);
+        }
+
+        for (const listener of listeners.message) {
+            ws.addEventListener('message', listener);
+        }
+
+        for (const listener of listeners.close) {
+            ws.addEventListener('close', listener);
+        }
+
+        this._ws = ws;
+
+        return this;
+    }
 }
