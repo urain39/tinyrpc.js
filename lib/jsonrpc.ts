@@ -243,10 +243,9 @@ export class JSONRPC {
         let isDead: boolean = false;
 
         const _this = this;
-        const timer = setInterval(function () {
+        setInterval(function () {
             if (isDead) {
                 _this.close();
-                clearInterval(timer);
                 handler(isDead, UNDEFINED, { code: JSONRPC.ERROR_HEARTBEAT_TIMEDOUT, message: 'Heartbeat timed out' });
             }
 
@@ -275,7 +274,8 @@ export class JSONRPC {
         const listeners = this._listeners;
         const ws = new WebSocket(this.rpcPath);
 
-        // TypeScript 中的类型推断还有待提高啊
+        // TypeScript 中的类型推断无法将`type`和`listener`关联到一起，
+        // 这应该是联合类型的一个 BUG ，所以下面的代码按照`type`分开写了。
         for (const listener of listeners.open) {
             ws.addEventListener('open', listener);
         }

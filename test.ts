@@ -42,3 +42,8 @@ rpc.heartbeat('', [], function (isDead, result, error) {
 		console.log('心跳包：' + JSON.stringify(result));
 	}
 });
+
+
+rpc.onError(function() {
+	rpc.reconnect();
+});
