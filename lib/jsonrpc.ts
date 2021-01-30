@@ -2,7 +2,8 @@ import {
     IMap, JSONRPCHandler, JSONRPCNotifier, JSONRPCRequest,
     JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
     JSONRPCNotification, JSONRPCID, JSONRPCParams, JSONRPCResult,
-    JSONRPCError, JSONRPCHeartbeatHandler, ArgumentsType, JSONRPCEventListenerMap
+    JSONRPCError, JSONRPCHeartbeatHandler, ArgumentsType,
+    JSONRPCEventListenerMap, JSONRPCPreprocess
 } from "./common";
 
 // 修复`undefined`可赋值问题。
@@ -11,6 +12,7 @@ const hasOwnProperty = {}.hasOwnProperty;
 
 export class JSONRPC {
     public rpcPath: string;
+    public preprocess?: JSONRPCPreprocess;
     public isReady: boolean;
     public requestCount: number;
     private _ws: WebSocket;
@@ -51,8 +53,9 @@ export class JSONRPC {
      */
     public static ERROR_HEARTBEAT_TIMEDOUT = -32033;
 
-    public constructor(rpcPath: string) {
+    public constructor(rpcPath: string, preprocess?: JSONRPCPreprocess) {
         this.rpcPath = rpcPath;
+        this.preprocess = preprocess;
         this.isReady = false;
         this.requestCount = 0;
         this._ws = new WebSocket(this.rpcPath);
@@ -78,7 +81,14 @@ export class JSONRPC {
          */
         let defaultMessageListener: Exclude<typeof WebSocket.prototype.onmessage, null>;
         this._ws.addEventListener('message', defaultMessageListener = function (event: MessageEvent) {
-            const response: JSONRPCNotification | JSONRPCResultResponse | JSONRPCErrorResponse = JSON.parse(event.data);
+            let response: JSONRPCNotification | JSONRPCResultResponse | JSONRPCErrorResponse;
+
+            response = JSON.parse(event.data);
+
+            const preprocess = _this.preprocess;
+            if (preprocess) {
+                response = preprocess(response);
+            }
 
             if (hasOwnProperty.call(response, 'id')) {
                 // 都判断了为啥它还是推导不出来呢？= =
