@@ -1,8 +1,8 @@
 import {
     IMap, JSONRPCHandler, JSONRPCNotifier, JSONRPCRequest,
     JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
-    JSONRPCNotification, JSONRPCID, JSONRPCParams, JSONRPCError,
-    JSONRPCHeartbeatHandler, ArgumentsType, JSONRPCEventListenerMap
+    JSONRPCNotification, JSONRPCID, JSONRPCParams, JSONRPCResult,
+    JSONRPCError, JSONRPCHeartbeatHandler, ArgumentsType, JSONRPCEventListenerMap
 } from "./common";
 
 // 修复`undefined`可赋值问题。
@@ -77,7 +77,7 @@ export class JSONRPC {
          * 处理响应数据。
          */
         let defaultMessageListener: Exclude<typeof WebSocket.prototype.onmessage, null>;
-        this._ws.addEventListener('message', defaultMessageListener = function (event: MessageEvent): any {
+        this._ws.addEventListener('message', defaultMessageListener = function (event: MessageEvent) {
             const response: JSONRPCNotification | JSONRPCResultResponse | JSONRPCErrorResponse = JSON.parse(event.data);
 
             if (hasOwnProperty.call(response, 'id')) {
@@ -250,7 +250,7 @@ export class JSONRPC {
             }
 
             isDead = true; // 假定其已经死亡
-            _this.request(method, params, function (result: unknown, error?: JSONRPCError) {
+            _this.request(method, params, function (result: JSONRPCResult, error?: JSONRPCError) {
                 // 如果有响应的话则证明其是活的
                 isDead = false;
                 handler(isDead, result, error);

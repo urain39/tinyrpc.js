@@ -26,7 +26,7 @@ export type JSONRPCID = string | number;
 /**
  * JSONRPC （`JSONRPCResponse`中）结果的类型。
  */
-export type JSONRPCResult = unknown;
+export type JSONRPCResult = any;
 
 /**
  * JSONRPC （`JSONRPCResponse`中）错误的类型。
@@ -34,7 +34,7 @@ export type JSONRPCResult = unknown;
 export interface JSONRPCError {
     code: number;
     message: string;
-    data?: unknown[];
+    data?: any[];
 }
 
 /**
