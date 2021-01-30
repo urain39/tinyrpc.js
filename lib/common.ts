@@ -93,6 +93,6 @@ export type JSONRPCHeartbeatHandler = (isDead: boolean, ...args: JSONRPCHandlerA
 export type JSONRPCNotifier = (params: JSONRPCParams) => any;
 
 /**
- * JSONRPC 自定义数据解析器。
+ * JSONRPC 响应的预处理回调。
  */
 export type JSONRPCPreprocess = (data: any) => any;
