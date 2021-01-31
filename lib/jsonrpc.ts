@@ -6,9 +6,11 @@ import {
     JSONRPCEventListenerMap, JSONRPCPreprocess
 } from "./common";
 
-// 修复`undefined`可赋值问题。
+
 const UNDEFINED = void 22;
+
 const hasOwnProperty = {}.hasOwnProperty;
+
 
 export class JSONRPC {
     public rpcPath: string;
@@ -249,21 +251,27 @@ export class JSONRPC {
      * @param params 心跳包的参数列表，可为空
      * @param handler 心跳包响应的处理函数
      */
-    public heartbeat(method: string, params: JSONRPCParams, handler: JSONRPCHeartbeatHandler): this {
-        let isDead: boolean = false;
+    public heartbeat(method: string, params: JSONRPCParams, handler: JSONRPCHeartbeatHandler, maxRetryCount: number = 3): this {
+        let timedOut: boolean = false,
+            retryCount: number = 0;
 
         const _this = this;
-        setInterval(function () {
-            if (isDead) {
-                _this.close();
-                handler(isDead, UNDEFINED, { code: JSONRPC.ERROR_HEARTBEAT_TIMEDOUT, message: 'Heartbeat timed out' });
+        let timerId = setInterval(function () {
+            if (timedOut) {
+                if (retryCount >= maxRetryCount) {
+                    _this.close();
+                    handler(timedOut, UNDEFINED, { code: JSONRPC.ERROR_HEARTBEAT_TIMEDOUT, message: 'Heartbeat timed out' });
+                    clearInterval(timerId);
+                }
+
+                retryCount++;
             }
 
-            isDead = true; // 假定其已经死亡
+            timedOut = true; // 假定其已超时
             _this.request(method, params, function (result: JSONRPCResult, error?: JSONRPCError) {
-                // 如果有响应的话则证明其是活的
-                isDead = false;
-                handler(isDead, result, error);
+                timedOut = false; // 设置为未超时
+                retryCount = 0; // 重置重试计数
+                handler(timedOut, result, error);
             }, true); // 心跳包是强制发送的！
         }, JSONRPC.HEARTBEAT_DELAY);
 
@@ -275,10 +283,11 @@ export class JSONRPC {
      */
     public close(...args: ArgumentsType<typeof WebSocket.prototype.close>): void {
         this._ws.close(...args);
-    };
+    }
 
     /**
-     * 重连接的方法。
+     * 重连接的方法。注意：此方法并不会重新调用`heartbeat`方法。如果你想
+     * 实现在重连完毕后发送心跳包，那么请手动调用`onOpen`方法添加对应回调。
      */
     public reconnect(): this {
         const listeners = this._listeners;
