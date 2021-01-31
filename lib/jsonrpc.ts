@@ -256,7 +256,7 @@ export class JSONRPC {
             retryCount: number = 0;
 
         const _this = this;
-        let timerId = setInterval(function () {
+        const timerId = setInterval(function () {
             if (timedOut) {
                 if (retryCount >= maxRetryCount) {
                     _this.close();
