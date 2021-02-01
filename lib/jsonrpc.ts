@@ -3,7 +3,7 @@ import {
     JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
     JSONRPCNotification, JSONRPCID, JSONRPCParams, ArgumentsType,
     JSONRPCEventListenerMap, JSONRPCPreprocess
-} from "./common";
+} from './common';
 
 
 const UNDEFINED = void 22;
