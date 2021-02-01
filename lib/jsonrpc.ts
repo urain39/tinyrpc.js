@@ -1,8 +1,7 @@
 import {
     IMap, JSONRPCHandler, JSONRPCNotifier, JSONRPCRequest,
     JSONRPCResponse, JSONRPCResultResponse, JSONRPCErrorResponse,
-    JSONRPCNotification, JSONRPCID, JSONRPCParams, JSONRPCResult,
-    JSONRPCError, JSONRPCHeartbeatHandler, ArgumentsType,
+    JSONRPCNotification, JSONRPCID, JSONRPCParams, ArgumentsType,
     JSONRPCEventListenerMap, JSONRPCPreprocess
 } from "./common";
 
@@ -33,12 +32,6 @@ export class JSONRPC {
      */
     public static CONNECTION_CHECK_DELAY = 1000;
 
-    /**
-     * 发送心跳包的间隔时间，默认是15秒。
-     */
-    public static HEARTBEAT_DELAY = 15000;
-
-
     // --------------- TinyRPC 定义的错误码 ----------------------
     // - JSONRPC 中定义的服务器错误码取值范围是`-32000`至`-32099`，
     // - 而 TinyRPC 选用了其中`-32032`至`-32039`作为预留的非服务器响
@@ -50,10 +43,6 @@ export class JSONRPC {
      */
     public static ERROR_MAX_CONCURRENT = -32032;
 
-    /**
-     * 心跳包未响应时的错误码。
-     */
-    public static ERROR_HEARTBEAT_TIMEDOUT = -32033;
 
     public constructor(rpcPath: string, preprocess?: JSONRPCPreprocess) {
         this.rpcPath = rpcPath;
@@ -245,40 +234,6 @@ export class JSONRPC {
     }
 
     /**
-     * 发送心跳包的方法。该方法会引用`JSONRPC.ERROR_HEARTBEAT_TIMEDOUT`属性，
-     * 用于作为其内部生成的错误代码。
-     * @param method 心跳包的 RPC 方法名称
-     * @param params 心跳包的参数列表，可为空
-     * @param handler 心跳包响应的处理函数
-     */
-    public heartbeat(method: string, params: JSONRPCParams, handler: JSONRPCHeartbeatHandler, maxRetryCount: number = 3): this {
-        let timedOut: boolean = false,
-            retryCount: number = 0;
-
-        const _this = this;
-        const timerId = setInterval(function () {
-            if (timedOut) {
-                if (retryCount >= maxRetryCount) {
-                    _this.close();
-                    handler(timedOut, UNDEFINED, { code: JSONRPC.ERROR_HEARTBEAT_TIMEDOUT, message: 'Heartbeat timed out' });
-                    clearInterval(timerId);
-                }
-
-                retryCount++;
-            }
-
-            timedOut = true; // 假定其已超时
-            _this.request(method, params, function (result: JSONRPCResult, error?: JSONRPCError) {
-                timedOut = false; // 设置为未超时
-                retryCount = 0; // 重置重试计数
-                handler(timedOut, result, error);
-            }, true); // 心跳包是强制发送的！
-        }, JSONRPC.HEARTBEAT_DELAY);
-
-        return this;
-    }
-
-    /**
      * `WebSocket.prototype.close`的包装。
      */
     public close(...args: ArgumentsType<typeof WebSocket.prototype.close>): void {
@@ -286,8 +241,7 @@ export class JSONRPC {
     }
 
     /**
-     * 重连接的方法。注意：此方法并不会重新调用`heartbeat`方法。如果你想
-     * 实现在重连完毕后发送心跳包，那么请手动调用`onOpen`方法添加对应回调。
+     * 重连接的方法。
      */
     public reconnect(): this {
         const listeners = this._listeners;

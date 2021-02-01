@@ -29,22 +29,6 @@ const rpc = new JSONRPC('ws://localhost:6800/jsonrpc')
 // 	rpc.close();
 // }, 5000);
 
-rpc.onOpen(function () {
-	rpc.heartbeat('', [], function (timedOut, result, error) {
-		if (timedOut) {
-			console.log('心跳包超时！');
-
-			return;
-		}
-
-		if (error) {
-			console.log('心跳包错误：' + JSON.stringify(error));
-		} else {
-			console.log('心跳包：' + JSON.stringify(result));
-		}
-	});
-});
-
 rpc.onError(function () {
 	setTimeout(function () {
 		rpc.reconnect();

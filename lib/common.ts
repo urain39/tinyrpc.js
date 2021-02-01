@@ -80,13 +80,6 @@ export interface JSONRPCErrorResponse extends JSONRPCResponse {
  */
 export type JSONRPCHandler = (result: JSONRPCResult, error?: JSONRPCError) => any;
 
-type JSONRPCHandlerArguments = ArgumentsType<JSONRPCHandler>;
-
-/**
- * JSONRPC 心跳包处理的回调类型。
- */
-export type JSONRPCHeartbeatHandler = (isDead: boolean, ...args: JSONRPCHandlerArguments) => any;
-
 /**
  * JSONRPC 处理通知的回调类型。
  */
