@@ -7,7 +7,6 @@ import {
 
 
 const UNDEFINED = void 22;
-
 const hasOwnProperty = {}.hasOwnProperty;
 
 
@@ -42,7 +41,6 @@ export class JSONRPC {
      * 超过最大并发任务数时的错误码。
      */
     public static ERROR_MAX_CONCURRENT = -32032;
-
 
     public constructor(rpcPath: string, preprocess?: JSONRPCPreprocess) {
         this.rpcPath = rpcPath;
@@ -101,7 +99,7 @@ export class JSONRPC {
                     (handlers[id] as any) = UNDEFINED;
                     _this.requestCount--;
                 } else {
-                    // TODO: 我们应该考虑未标记过的id吗？
+                    // TODO: 我们应该响应“服务端”的请求吗？
                 }
             } else {
                 // JSON RPC 规定，没有 id 的响应（请求）应该视作是通知。
@@ -116,7 +114,7 @@ export class JSONRPC {
                         if (params)
                             notifier(params);
                     } else {
-                        // TODO: 我们应该考虑未标记过的通知吗？
+                        throw new Error('Invalid notification with unknown `method`')
                     }
                 } else {
                     throw new Error('Invalid response with no `id` or `method`');
