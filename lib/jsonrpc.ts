@@ -99,7 +99,7 @@ export class JSONRPC {
                     (handlers[id] as any) = UNDEFINED;
                     _this.requestCount--;
                 } else {
-                    // TODO: 我们应该响应“服务端”的请求吗？
+                    // NOTE: 我们不应该响应“服务端”的请求。
                 }
             } else {
                 // JSON RPC 规定，没有 id 的响应（请求）应该视作是通知。
@@ -114,7 +114,7 @@ export class JSONRPC {
                         if (params)
                             notifier(params);
                     } else {
-                        throw new Error('Invalid notification with unknown `method`')
+                        // NOTE: 我们不应该响应未注册的通知。
                     }
                 } else {
                     throw new Error('Invalid response with no `id` or `method`');
@@ -190,7 +190,7 @@ export class JSONRPC {
         if (!force) {
             // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）的请求。
             if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId) {
-                handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_CONCURRENT, message: 'Max concurrent error' })
+                handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_CONCURRENT, message: 'Max concurrent error' });
 
                 return;
             }
