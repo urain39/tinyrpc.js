@@ -17,6 +17,7 @@ export class JSONRPC {
     public requestCount: number;
     private _ws: WebSocket;
     private _requestId: number;
+    private _requests: ArgumentsType<typeof JSONRPC.prototype._request>[];
     private _listeners: JSONRPCEventListenerMap;
     private _handlers: IMap<JSONRPCHandler>;
     private _notifiers: IMap<JSONRPCNotifier>
@@ -25,11 +26,6 @@ export class JSONRPC {
      * 最大请求数量。
      */
     public static MAX_REQUEST_COUNT = 8;
-
-    /**
-     * 请求时推迟执行的间隔时间，默认是1秒。
-     */
-    public static CONNECTION_CHECK_DELAY = 1000;
 
     // --------------- TinyRPC 定义的错误码 ----------------------
     // - JSONRPC 中定义的服务器错误码取值范围是`-32000`至`-32099`，
@@ -49,6 +45,7 @@ export class JSONRPC {
         this.requestCount = 0;
         this._ws = new WebSocket(this.rpcPath);
         this._requestId = 0;
+        this._requests = [];
         this._listeners = { open: [], error: [], message: [], close: [] };
         this._handlers = {};
         this._notifiers = {};
@@ -95,8 +92,7 @@ export class JSONRPC {
                         throw new Error('Invalid response with no `result` or `error`');
                     }
 
-                    // vvv 此处我们想将其设置为`undefied`以删除变量。
-                    (handlers[id] as any) = UNDEFINED;
+                    delete handlers[id];
                     _this.requestCount--;
                 } else {
                     // NOTE: 我们不应该响应“服务端”的请求。
@@ -205,16 +201,20 @@ export class JSONRPC {
                 this.requestCount++;
         }
 
-        // 等待连接。
+        const requests = this._requests;
         if (!this.isReady) {
-            const _this = this;
-            setTimeout(function () {
-                _this._request(method, params, handler, force, requestId);
-            }, JSONRPC.CONNECTION_CHECK_DELAY);
+            // 等待连接完成。
+            requests.push([method, params, handler, force, requestId]);
 
             return;
         }
 
+        // 先处理之前的请求。
+        while (requests.length > 0) {
+            this._request(...requests.shift()!);
+        }
+
+        // 创建请求对象。
         const request: JSONRPCRequest = {
             jsonrpc: '2.0',
             id: requestId,
