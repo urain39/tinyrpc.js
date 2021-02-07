@@ -56,6 +56,12 @@ export class JSONRPC {
         const _this = this;
         this.onOpen(function () {
             _this.isReady = true;
+
+            // 处理之前的请求。
+            const requests = _this._requests;
+            while (requests.length > 0) {
+                _this._request(...requests.shift()!);
+            }
         });
 
         this.onClose(function () {
@@ -201,17 +207,12 @@ export class JSONRPC {
                 this.requestCount++;
         }
 
-        const requests = this._requests;
         if (!this.isReady) {
-            // 等待连接完成。
+            // 推迟到连接完成时再执行。
+            const requests = this._requests;
             requests.push([method, params, handler, force, requestId]);
 
             return;
-        }
-
-        // 先处理之前的请求。
-        while (requests.length > 0) {
-            this._request(...requests.shift()!);
         }
 
         // 创建请求对象。
