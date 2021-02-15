@@ -208,8 +208,7 @@ export class JSONRPC {
 
         if (!this.isReady) {
             // 推迟到连接完成时再执行。
-            const requests = this._requests;
-            requests.push([method, params, handler, force, requestId]);
+            this._requests.push([method, params, handler, force, requestId]);
 
             return;
         }
