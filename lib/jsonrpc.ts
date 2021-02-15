@@ -189,22 +189,21 @@ export class JSONRPC {
      * @param requestId 请求 id
      */
     private _request(method: string, params: JSONRPCParams, handler: JSONRPCHandler, force: boolean, requestId?: JSONRPCID): void {
-        if (!force) {
-            // 忽略掉超出的请求，但不包括被推迟执行（带有`requestId`）的请求。
-            if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT && !requestId) {
-                handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_CONCURRENT, message: 'Max concurrent error' });
-
-                return;
-            }
-        }
-
-        // 判断请求状态。
+        // 判断是否是第一次执行。
         if (requestId === UNDEFINED) {
             requestId = this._requestId++;
 
-            if (!force)
+            if (!force) {
+                // 忽略掉超出的请求。
+                if (this.requestCount >= JSONRPC.MAX_REQUEST_COUNT) {
+                    handler(UNDEFINED, { code: JSONRPC.ERROR_MAX_CONCURRENT, message: 'Max concurrent error' });
+
+                    return;
+                }
+
                 // 请求计数只针对普通请求。
                 this.requestCount++;
+            }
         }
 
         if (!this.isReady) {
